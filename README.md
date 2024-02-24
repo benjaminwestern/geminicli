@@ -1,64 +1,61 @@
-Title: Gemini AI Chatbot
+# GeminiCLI  
 
-Overview
+GeminiCLI is a command-line interface tool written in Go, designed to interact with the generative language API provided by Google. It enables users to generate content by sending requests to the API and receiving responses directly in the terminal. This tool is particularly useful for developers and researchers working on natural language processing and generative AI models.  
+## Features  
+- Send requests to the generative language API.
+- Save conversation history in markdown files with timestamps.
+- Clear screen functionality for better user experience. 
+- Load context from a file to influence the generation. 
+- Command-line flags for flexible configuration.  
 
-This Go project builds a command-line chatbot powered by Google's Gemini 1.0 Pro large language model. It provides a conversational interface, safety settings, and the ability to log conversation transcripts to timestamped Markdown files.
+## Pre-Requisites
+1. Before installing GeminiCLI, ensure you have Go installed on your system. You can download and install Go from [the official Go website](https://golang.org/dl/).  
+2. Setup an API Key for Gemini by following this documentation - [Gemini API Key](https://aistudio.google.com/app/apikey)
 
-Features
+## Installation  
 
-AI-Powered Chat: Interact with the state-of-the-art Gemini 1.0 Pro model for engaging and informative conversations.
-Customizable: Adjust generation parameters like temperature and top-k/top-p for tailored responses.
-Safety Considerations: Implement safety settings to help guide the model's output.
-Conversation History: Track your chats with automatically generated Markdown logs, including timestamps.
-New Chat Sessions: Easily start new chat sessions, with the option to clear previous conversation history.
-Cross-Platform Support: Works on different operating systems thanks to dynamic screen clearing.
-Prerequisites
+To install GeminiCLI, clone the repository to your local machine:  
+```bash 
+git clone https://github.com/benjaminwestern/geminicli.git cd geminicli
+```
 
-A Google Cloud Platform project
-A Gemini 1.0 Pro API key (set as the API_KEY environment variable)
-Go programming language installed on your system
-Getting Started
+Change directory to the geminicli repo you just cloned, then, build the binary using:
 
-Clone this repository:
+```bash 
+go build .
+```
 
-Bash
-git clone https://github.com/benjaminwestern/gemini-ai-chatbot
-Use code with caution.
-Set your API key as an environment variable:
+This will create the `geminicli` executable in your current directory.
+## Usage
+To start using GeminiCLI, you can run the executable directly from the command line. Here are some common commands:
 
-Bash
-export API_KEY=your_gemini_api_key
-Use code with caution.
-Run the chatbot:
+- To generate content with a context file:
 
-Bash
-go run main.go
-Use code with caution.
-Usage
+```bash
+./geminicli -context path/to/your/context.txt
+```
 
-Enter your message in the terminal and press Enter.
-The chatbot will process your message and generate a response using the Gemini AI model.
-Type 'exit' to end the chat session.
-If you want to start a new chat session, you have the option to remove the conversation history of the previous chat session.
-Customization
+- To specify an output file for the conversation log:
 
-Modify the following parameters within the main.go file to fine-tune the chatbot's behavior:
+```bash
+./geminicli -output path/to/your/output/
+```
 
-temperature: Controls the randomness of responses (higher values lead to more varied output).
-topK: Limits the number of tokens considered for response generation.
-topP: Controls the probability distribution for selecting the next token.
-maxOutputTokens: Sets the maximum length of the generated response.
-stopSequences: Define sequences that trigger the chatbot to stop generating text.
-Safety Settings
+- For help and a list of available flags:
 
-Review and adjust the CreateDefaultSafetySettings() function to manage the AI's output in alignment with your desired safety guidelines. Refer to the Google AI API documentation for detailed safety settings customization: https://ai.google.dev/api/rest/v1beta/SafetySetting#HarmBlockThreshold
+```bash
+./geminicli -help
+```
 
-Contributing
+Ensure you have set the `API_KEY` environment variable with your API key before running the tool.
+## Contributing
+I welcome contributions from the community! If you'd like to contribute to GeminiCLI, please fork the repository and submit a pull request with your changes. For major changes, please open an issue first to discuss what you would like to change.
+## License
+GeminiCLI is open-sourced under the MIT License. See the LICENSE file for more details.
+## Getting Help
+If you encounter any issues or have questions about using GeminiCLI, please open an issue on the GitHub issue tracker.
 
-We welcome contributions! Feel free to open issues for bug reports or feature requests. If you'd like to submit changes, please create a pull request.
-
-Disclaimer
-
-Please use this chatbot responsibly.  Remember that large language models can sometimes generate inaccurate, biased, or potentially harmful responses.
-
-Let me know if you'd like any refinements or additional sections added to this README!
+For more information about the generative language API and its configuration, visit [Google's API documentation](https://ai.google.dev/api/rest).
+## Important Information
+Please ensure you are aware that anything you input into these models (if your using a personal google account) will be utilised to further train the Gemini models, so PLEASE think twice before sending private content to these models!
+[Google's Gemini FAQs](https://gemini.google.com/faq)
