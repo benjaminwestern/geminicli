@@ -4,6 +4,9 @@
 # Environment variables file
 .env
 
+# Conversation Ignores
+conversation-*.md
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
