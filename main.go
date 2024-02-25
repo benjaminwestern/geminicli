@@ -1,79 +1,27 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
-	"log"
+	"flag"
 	"fmt"
 	"io"
-	"time"
-	"bufio"
+	"log"
 	"net/http"
-	"runtime"
-	"os/exec"
 	"os"
-	"flag"
+	"runtime"
 )
 
 // Documentation URL: https://ai.google.dev/api/rest/v1beta/SafetySetting#HarmBlockThreshold
 const (
-	url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent"
-	operatingSystem = runtime.GOOS 
-	githubURL = "https://github.com/benjaminwestern/geminicli"
+	baseURL         = "https://generativelanguage.googleapis.com"
+	operatingSystem = runtime.GOOS
+	githubURL       = "https://github.com/benjaminwestern/geminicli"
 )
 
-func loadContextFile(filename string) (string, error) {
-	if filename == "" {
-		return "", nil // No context file specified
-	}
-
-	contextData, err := os.ReadFile(filename)
-	if err != nil {
-		return "", fmt.Errorf("error reading context file: %w", err)
-	}
-	return string(contextData), nil
-}
-
-func clearScreen() {
-	var cmd *exec.Cmd
-	if operatingSystem == "windows" {
-		cmd = exec.Command("cmd", "/c", "cls") 
-	} else {
-		cmd = exec.Command("clear") 
-	}
-
-	cmd.Stdout = os.Stdout
-	err := cmd.Run()
-	if err != nil { 
-		fmt.Println("Error clearing screen:", err)
-	}
-}
-
-func createTimestampedLogFile(path string) (*os.File, error) {
-	timestamp := time.Now().Format("2006-01-02-15-04-05")
-	filename := "conversation-" + timestamp + ".md"
-	cwd, err := os.Getwd()
-	if err != nil {
-		log.Fatal("Cannot get current working directory:", err)
-		os.Exit(1)
-	}
-
-	// If the user has specified a path, use it
-	if path != "" {
-		filename = path + "/" + filename
-	} else {
-		filename = cwd + "/" + filename
-	}
-
-	logFile, err := os.Create(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	return logFile, nil
-}
-
 func main() {
+	conversationHistory := []Content{}
 	contextFile := flag.String("context", "", "Path to the context file")
 	outputPath := flag.String("output", "", "Path to the output file")
 	help := flag.Bool("help", false, "Show help message")
@@ -85,11 +33,10 @@ func main() {
 	}
 	flag.Parse()
 
-	if *help { 
+	if *help {
 		flag.Usage()
 		os.Exit(0)
 	}
-
 
 	token := os.Getenv("API_KEY")
 	if token == "" {
@@ -102,22 +49,30 @@ func main() {
 		log.Fatal("Cannot load context file:", err)
 	}
 
-
 	reader := bufio.NewReader(os.Stdin)
 
 	config := GenerationConfig{
-		Temperature:     0.9,
-		TopK:            1,
-		TopP:            1,
-		MaxOutputTokens: 2048,
+		Temperature:     parseFloat64(importEnvironmentVariables("TEMPERATURE", "0.9")),
+		TopK:            parseInt(importEnvironmentVariables("TOP_K", "1")),
+		TopP:            parseInt(importEnvironmentVariables("TOP_P", "1")),
+		MaxOutputTokens: parseInt(importEnvironmentVariables("MAX_OUTPUT_TOKENS", "2048")),
 		StopSequences:   []any{},
 	}
-	safetySettings := CreateDefaultSafetySettings()
+
+	harassment := validateSafetyThreshold("HARASSMENT")
+	hateSpeech := validateSafetyThreshold("HATE_SPEECH")
+	sexuallyExplicit := validateSafetyThreshold("SEXUALLY_EXPLICIT")
+	dangerousContent := validateSafetyThreshold("DANGEROUS_CONTENT")
+
+	safetySettings := CreateDefaultSafetySettings(harassment, hateSpeech, sexuallyExplicit, dangerousContent)
 	firstInput := true
 
-	geminiURL := fmt.Sprintf("%s?key=%s", url, token)
+	modelType := importEnvironmentVariables("MODEL_TYPE", "gemini-1.0-pro")
+	apiVersion := importEnvironmentVariables("API_VERSION", "v1beta")
 
-	conversationHistory := []Content{}
+	url := fmt.Sprintf("%s/%s/models/%s:generateContent", baseURL, apiVersion, modelType)
+
+	geminiURL := fmt.Sprintf("%s?key=%s", url, token)
 
 	logFile, err := createTimestampedLogFile(*outputPath)
 	if err != nil {
@@ -125,28 +80,27 @@ func main() {
 	}
 	defer logFile.Close()
 
+	fmt.Println("\n----------------- Welcome! -------------------")
 	fmt.Println("Forget the browser. Chat with Gemini Pro right here!\n")
 	fmt.Println("Add context to the conversation by adding a context file with the -context flag.\n")
-	fmt.Printf("Your conversation will be logged in a markdown file. here %v/%v\n",logFile.Name())
+	fmt.Printf("Your conversation will be logged in a markdown file. here %v\n", logFile.Name())
 	fmt.Println("It might take a few seconds to get a response from the model. Please be patient.\n")
 	fmt.Printf("Checkout the readme for more information on how to use this program at %v\n", githubURL)
 
-	for { 
+	for {
 		fmt.Println("Enter your message (or type 'exit' to quit):")
-		input, _ := reader.ReadString('\n')	
-		
-		if input == "exit\n" { 
+		input, _ := reader.ReadString('\n')
+
+		if input == "exit\n" {
 			break
 		}
 
-		if firstInput && context != ""{
+		if firstInput && context != "" {
 			input = context + "\n" + input
 		}
 
 		firstInput = false
-		
 		userInput := CreateUserContent(input)
-
 		conversationHistory = append(conversationHistory, userInput)
 
 		geminiRequest := GeminiRequest{
@@ -156,28 +110,40 @@ func main() {
 		}
 
 		marshalledRequest, err := json.Marshal(geminiRequest)
+
+		fmt.Println("Sending request to Gemini...")
 		if err != nil {
 			log.Fatal("failed to marshall gemini request:", err)
+			os.Exit(1)
 		}
 
 		req, err := http.NewRequest("POST", geminiURL, bytes.NewBuffer(marshalledRequest))
 		if err != nil {
 			log.Fatal("failed to create http request:", err)
+			os.Exit(1)
 		}
-		req.Header.Set("Content-Type", "application/json")
 
+		req.Header.Set("Content-Type", "application/json")
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
 			log.Fatal("failed to send http request:", err)
+			os.Exit(1)
 		}
 		defer resp.Body.Close()
 
+		if resp.StatusCode != 200 {
+			log.Fatal("failed to get 200 status code from gemini:", err)
+			os.Exit(1)
+		}
+
+		fmt.Println("Received response from Gemini...")
 		body, _ := io.ReadAll(resp.Body)
 		output := GeminiResponse{}
 		err = json.Unmarshal(body, &output)
 		if err != nil {
 			log.Fatal("failed to unmarshal gemini response:", err)
+			os.Exit(1)
 		}
 
 		modelResponse := CreateModelContent(output.Candidates[0].Content.Parts[0].Text)
@@ -185,10 +151,18 @@ func main() {
 		fmt.Println("Model Response:", modelResponse.Parts[0].Text)
 		finishReason := output.Candidates[0].FinishReason
 		if finishReason != "STOP" {
-			fmt.Println("Unknown finish Reason:", output.Candidates[0].FinishReason)
+			// TODO Handle these:
+			// https://ai.google.dev/api/rest/v1beta/Candidate#finishreason
+			// FINISH_REASON_UNSPECIFIED	Default value. This value is unused.
+			// STOP	Natural stop point of the model or provided stop sequence.
+			// MAX_TOKENS	The maximum number of tokens as specified in the request was reached.
+			// SAFETY	The candidate content was flagged for safety reasons.
+			// RECITATION	The candidate content was flagged for recitation reasons.
+			// OTHER	Unknown reason.
+			fmt.Println("Unhandled finish Reason:", output.Candidates[0].FinishReason)
 		}
 
-		conversationHistory = append(conversationHistory, modelResponse) 
+		conversationHistory = append(conversationHistory, modelResponse)
 
 		fmt.Fprintf(logFile, "**User:** %s\n", userInput.Parts[0].Text)
 		fmt.Fprintf(logFile, "**Model:** %s\n\n", modelResponse.Parts[0].Text)
@@ -212,11 +186,11 @@ func main() {
 
 			if exitProgram == "yes" {
 				clearScreen()
-				os.Exit(0)			
+				os.Exit(0)
 			}
 
 			firstInput = true
-			conversationHistory = []Content{} 
+			conversationHistory = []Content{}
 
 			logFile, err = createTimestampedLogFile(*outputPath)
 			if err != nil {
@@ -232,4 +206,3 @@ func main() {
 		}
 	}
 }
-
