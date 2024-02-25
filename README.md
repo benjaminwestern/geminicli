@@ -16,7 +16,7 @@ GeminiCLI is a command-line interface tool written in Go, designed to interact w
 
 To install GeminiCLI, clone the repository to your local machine:  
 ```bash 
-git clone https://github.com/benjaminwestern/geminicli.git cd geminicli
+git clone https://github.com/benjaminwestern/geminicli.git && cd geminicli
 ```
 
 Change directory to the geminicli repo you just cloned, then, build the binary using:
@@ -90,7 +90,7 @@ If you encounter any issues or have questions about using GeminiCLI, please open
 For more information about the generative language API and its configuration, visit [Google's API documentation](https://ai.google.dev/api/rest).
 
 ## Important Information
-Please ensure you are aware that anything you input into these models (if your using a personal google account) will be utilised to further train the Gemini models, so PLEASE think twice before sending private content to these models!
+Please ensure you are aware that anything you input into these models (if you're using a personal Google account) will be utilised to further train the Gemini models, so PLEASE think twice before sending private content to these models!
 [Google's Gemini FAQs](https://gemini.google.com/faq)
 
 ## TODO QOL
