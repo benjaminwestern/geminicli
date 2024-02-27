@@ -10,16 +10,20 @@ import (
 	"time"
 )
 
-func CreateUserContent(input string) Content {
-	return Content{
-		Role:  "user",
-		Parts: []Parts{{Text: input}},
-	}
+func displayMenu() {
+	clearScreen()
+	fmt.Println("\nMenu:")
+	fmt.Println("1. Reset chat")
+	fmt.Println("2. Change context")
+	fmt.Println("3. Delete conversation log")
+	fmt.Println("4. Change API Key")
+	fmt.Println("5. Exit")
+	fmt.Print("Enter your choice: ")
 }
 
-func CreateModelContent(input string) Content {
+func CreateContent(role, input string) Content {
 	return Content{
-		Role:  "model",
+		Role:  role,
 		Parts: []Parts{{Text: input}},
 	}
 }
@@ -72,8 +76,8 @@ func clearScreen() {
 	}
 }
 
-func validateSafetyThreshold(safetySetting string) string {
-	currentSafetySetting := importEnvironmentVariables(safetySetting, "BLOCK_NONE")
+func validateSafetyThreshold(safetySetting string, debug bool) string {
+	currentSafetySetting := importEnvironmentVariables(safetySetting, "BLOCK_NONE", debug)
 	upperCast := strings.ToUpper(currentSafetySetting)
 
 	// Allowed list pulled from the documentation for the API
@@ -92,32 +96,40 @@ func validateSafetyThreshold(safetySetting string) string {
 		}
 	}
 
-	fmt.Printf("Invalid safety setting: %s, using default: BLOCK_NONE\n", upperCast)
+	if debug {
+		fmt.Printf("Invalid safety setting: %s, using default: BLOCK_NONE\n", upperCast)
+	}
 	return "BLOCK_NONE"
 }
 
-func importEnvironmentVariables(variable, defaultVar string) string {
+func importEnvironmentVariables(variable, defaultVar string, debug bool) string {
 	value := os.Getenv(variable)
 	if value == "" {
 		value = defaultVar
-		fmt.Printf("Environment variable %s is not set, using defaults %s\n", variable, defaultVar)
+		if debug {
+			fmt.Printf("Environment variable %s is not set, using defaults %s\n", variable, defaultVar)
+		}
 	}
 	return value
 }
 
-func parseFloat64(value string) float64 {
+func parseFloat64(value string, debug bool) float64 {
 	result, err := strconv.ParseFloat(value, 64)
 	if err != nil {
-		fmt.Printf("Failed to parse float64, using default value: 0.9 | error: %v", err)
+		if debug {
+			fmt.Printf("Failed to parse float64, using default value: 0.9 | error: %v", err)
+		}
 		return 0.9
 	}
 	return result
 }
 
-func parseInt(value string) int {
+func parseInt(value string, debug bool) int {
 	result, err := strconv.Atoi(value)
 	if err != nil {
-		fmt.Printf("Failed to parse int, using default value: 1 | error: %v", err)
+		if debug {
+			fmt.Printf("Failed to parse int, using default value: 1 | error: %v", err)
+		}
 		return 1
 	}
 	return result
