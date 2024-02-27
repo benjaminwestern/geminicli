@@ -26,6 +26,7 @@ func main() {
 	contextFile := flag.String("context", "", "Path to the context file")
 	outputPath := flag.String("output", "", "Path to the output file")
 	debug := flag.Bool("debug", false, "Enable debug mode")
+	hideWelcome := flag.Bool("hide-welcome", false, "Hide welcome message")
 	help := flag.Bool("help", false, "Show help message")
 
 	flag.Usage = func() {
@@ -49,6 +50,19 @@ func main() {
 	context, err := loadContextFile(*contextFile)
 	if err != nil {
 		log.Fatal("Cannot load context file:", err)
+	}
+
+	err = validateInputContextTokenLimit(context)
+	if err != nil {
+		fmt.Println("Context is too large...")
+		fmt.Println("Please enter the path to the context file (Max tokens 30720 or ~153,000 words):")
+		var newContext string
+		fmt.Scanln(&newContext)
+		context, err = loadContextFile(newContext)
+		if err != nil {
+			log.Fatal("Cannot load context file:", err)
+		}
+		fmt.Println("Context changed.")
 	}
 
 	reader := bufio.NewReader(os.Stdin)
@@ -82,12 +96,14 @@ func main() {
 	}
 	defer logFile.Close()
 
-	fmt.Println("\n----------------- Welcome! -------------------")
-	fmt.Println("Forget the browser. Chat with Gemini Pro right here!\n")
-	fmt.Println("Add context to the conversation by adding a context file with the -context flag.\n")
-	fmt.Printf("Your conversation will be logged in a markdown file. here %v\n", logFile.Name())
-	fmt.Println("It might take a few seconds to get a response from the model. Please be patient.\n")
-	fmt.Printf("Checkout the readme for more information on how to use this program at %v\n", githubURL)
+	if !*hideWelcome {
+		fmt.Println("\n----------------- Welcome! -------------------")
+		fmt.Println("Forget the browser. Chat with Gemini Pro right here!\n")
+		fmt.Println("Add context to the conversation by adding a context file with the -context flag.\n")
+		fmt.Printf("Your conversation will be logged in a markdown file. here %v\n", logFile.Name())
+		fmt.Println("It might take a few seconds to get a response from the model. Please be patient.\n")
+		fmt.Printf("Checkout the readme for more information on how to use this program at %v\n", githubURL)
+	}
 
 	for {
 		fmt.Println("Enter your message or type 'menu' to see the options:")
@@ -134,10 +150,13 @@ func main() {
 				if err != nil {
 					log.Fatal("Cannot read directory:", err)
 				}
+				fmt.Println("Note: Only markdown files with the prefix 'conversation' will be displayed and you can't delete the current conversation log.")
 				fmt.Println("Conversation logs:")
 				for _, file := range files {
-					if strings.HasSuffix(file.Name(), ".md") {
-						fmt.Println(file.Name())
+					if strings.HasSuffix(file.Name(), ".md") && strings.HasPrefix(file.Name(), "conversation") {
+						if file.Name() == logFile.Name() {
+							fmt.Println(file.Name())
+						}
 					}
 				}
 				fmt.Println("Enter the name of the file you want to delete:")
@@ -239,6 +258,15 @@ func main() {
 
 			fmt.Fprintf(logFile, "**User:** %s\n", userInput.Parts[0].Text)
 			fmt.Fprintf(logFile, "**Model:** %s\n\n", modelResponse.Parts[0].Text)
+
+			err = validateConversationTokenLimit(conversationHistory)
+
+			if err != nil {
+				fmt.Println(err)
+				convLength := len(conversationHistory)
+				conversationHistory = conversationHistory[convLength-2:]
+				fmt.Println("The last two messages have been removed from the conversation history.")
+			}
 		}
 	}
 }
