@@ -64,11 +64,11 @@ func checkTokenLimit(tokens, warning, limit int) error {
 
 }
 
-func validateInputContextTokenLimit(input string) error {
+func validateInputContextTokenLimit(tokenLimit, tokenWarning, outputTokenCount int, input string) error {
 	parts := strings.Fields(input)
 	tokens := getTokenCount(parts)
 
-	err := checkTokenLimit(tokens, 25000, 27000)
+	err := checkTokenLimit(tokens, tokenWarning, tokenLimit-outputTokenCount)
 	if err != nil {
 		return err
 	}
@@ -77,11 +77,11 @@ func validateInputContextTokenLimit(input string) error {
 
 }
 
-func validateConversationTokenLimit(conversationHistory []Content) error {
+func validateConversationTokenLimit(tokenLimit, tokenWarning int, conversationHistory []Content) error {
 	parts := createStringArrayFromContent(conversationHistory)
 	tokens := getTokenCount(parts)
 
-	err := checkTokenLimit(tokens, 25000, 30720)
+	err := checkTokenLimit(tokens, tokenWarning, tokenLimit)
 	if err != nil {
 		return err
 	}

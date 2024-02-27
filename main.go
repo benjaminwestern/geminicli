@@ -21,12 +21,23 @@ const (
 	githubURL       = "https://github.com/benjaminwestern/geminicli"
 )
 
+// API can count the number of tokens in the context and the conversation history
+// curl https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:countTokens?key=$API_KEY \
+//     -H 'Content-Type: application/json' \
+//     -X POST \
+//     -d '{
+//       "contents": [{
+//         "parts":[{
+//           "text": "Write a story about a magic backpack."}]}]}' > response.json
+
 func main() {
 	conversationHistory := []Content{}
 	contextFile := flag.String("context", "", "Path to the context file")
 	outputPath := flag.String("output", "", "Path to the output file")
 	debug := flag.Bool("debug", false, "Enable debug mode")
 	hideWelcome := flag.Bool("hide-welcome", false, "Hide welcome message")
+	tokenLimit := flag.Int("token-limit", 30720, "Max tokens for the conversation history")
+	tokenWarning := flag.Int("token-warning", 25000, "Warning for the conversation history")
 	help := flag.Bool("help", false, "Show help message")
 
 	flag.Usage = func() {
@@ -47,15 +58,20 @@ func main() {
 		os.Exit(1)
 	}
 
+	outputTokenLimit := parseInt(importEnvironmentVariables("MAX_OUTPUT_TOKENS", "2048", *debug), *debug)
+	temperature := parseFloat64(importEnvironmentVariables("TEMPERATURE", "0.9", *debug), *debug)
+	topK := parseInt(importEnvironmentVariables("TOP_K", "1", *debug), *debug)
+	topP := parseFloat64(importEnvironmentVariables("TOP_P", "1", *debug), *debug)
+
 	context, err := loadContextFile(*contextFile)
 	if err != nil {
 		log.Fatal("Cannot load context file:", err)
 	}
 
-	err = validateInputContextTokenLimit(context)
+	err = validateInputContextTokenLimit(*tokenLimit, *tokenWarning, outputTokenLimit, context)
 	if err != nil {
 		fmt.Println("Context is too large...")
-		fmt.Println("Please enter the path to the context file (Max tokens 30720 or ~153,000 words):")
+		fmt.Printf("Please enter the path to the context file (Max tokens %d or ~%d words):", *tokenLimit, *tokenLimit*5)
 		var newContext string
 		fmt.Scanln(&newContext)
 		context, err = loadContextFile(newContext)
@@ -68,10 +84,10 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 
 	config := GenerationConfig{
-		Temperature:     parseFloat64(importEnvironmentVariables("TEMPERATURE", "0.9", *debug), *debug),
-		TopK:            parseInt(importEnvironmentVariables("TOP_K", "1", *debug), *debug),
-		TopP:            parseInt(importEnvironmentVariables("TOP_P", "1", *debug), *debug),
-		MaxOutputTokens: parseInt(importEnvironmentVariables("MAX_OUTPUT_TOKENS", "2048", *debug), *debug),
+		Temperature:     temperature,
+		TopK:            topK,
+		TopP:            topP,
+		MaxOutputTokens: outputTokenLimit,
 		StopSequences:   []any{},
 	}
 
@@ -259,7 +275,7 @@ func main() {
 			fmt.Fprintf(logFile, "**User:** %s\n", userInput.Parts[0].Text)
 			fmt.Fprintf(logFile, "**Model:** %s\n\n", modelResponse.Parts[0].Text)
 
-			err = validateConversationTokenLimit(conversationHistory)
+			err = validateConversationTokenLimit(*tokenLimit, *tokenWarning, conversationHistory)
 
 			if err != nil {
 				fmt.Println(err)
