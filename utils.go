@@ -21,6 +21,74 @@ func displayMenu() {
 	fmt.Print("Enter your choice: ")
 }
 
+func createStringArrayFromContent(content []Content) []string {
+	var output []string
+	for _, part := range content {
+		for _, text := range part.Parts {
+			output = append(output, text.Text)
+		}
+	}
+	return output
+}
+
+func getTokenCount(inputConversation []string) (tokens int) {
+	tokenCount := 0
+	wordCount := 0
+	// A token is defined as a word averaging 4-6 characters
+
+	for _, input := range inputConversation {
+		wordCount += len(strings.Fields(input))
+	}
+
+	// Average word length is 5
+	tokenCount = wordCount / 5
+
+	return tokenCount
+}
+
+func checkTokenLimit(tokens, warning, limit int) error {
+
+	if tokens == limit {
+		return fmt.Errorf("token limit reached: %d", tokens)
+	}
+
+	if tokens > limit {
+		return fmt.Errorf("token limit exceeded: %d", tokens)
+	}
+
+	if tokens > warning && tokens < limit {
+		fmt.Printf("Warning: The conversation is approaching the token limit of %d. The conversation will be truncated at %d or more tokens.", limit, limit)
+	}
+
+	return nil
+
+}
+
+func validateInputContextTokenLimit(input string) error {
+	parts := strings.Fields(input)
+	tokens := getTokenCount(parts)
+
+	err := checkTokenLimit(tokens, 25000, 27000)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+func validateConversationTokenLimit(conversationHistory []Content) error {
+	parts := createStringArrayFromContent(conversationHistory)
+	tokens := getTokenCount(parts)
+
+	err := checkTokenLimit(tokens, 25000, 30720)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func CreateContent(role, input string) Content {
 	return Content{
 		Role:  role,
