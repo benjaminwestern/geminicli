@@ -134,10 +134,13 @@ func main() {
 				if err != nil {
 					log.Fatal("Cannot read directory:", err)
 				}
+				fmt.Println("Note: Only markdown files with the prefix 'conversation' will be displayed and you can't delete the current conversation log.")
 				fmt.Println("Conversation logs:")
 				for _, file := range files {
-					if strings.HasSuffix(file.Name(), ".md") {
-						fmt.Println(file.Name())
+					if strings.HasSuffix(file.Name(), ".md") && strings.HasPrefix(file.Name(), "conversation") {
+						if file.Name() == logFile.Name() {
+							fmt.Println(file.Name())
+						}
 					}
 				}
 				fmt.Println("Enter the name of the file you want to delete:")
